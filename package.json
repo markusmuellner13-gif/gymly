@@ -11,7 +11,8 @@
     "db:migrate:local": "node --env-file=.env.local scripts/migrate.mjs",
     "catalog:build": "node scripts/build-catalog.mjs scripts/source-exercises.json",
     "icons:build": "node scripts/build-icons.mjs",
-    "vapid:keys": "node scripts/gen-vapid.mjs"
+    "vapid:keys": "node scripts/gen-vapid.mjs",
+    "db:migrate:preview": "node --env-file=.env.preview.local scripts/migrate.mjs --preview"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

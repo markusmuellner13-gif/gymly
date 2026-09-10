@@ -33,6 +33,7 @@ any screen size, dark and light.
 | Framework | Next.js 16 (App Router, Server Actions) + React 19 |
 | Styling | Tailwind CSS v4 with CSS-variable design tokens |
 | Database | Turso (libSQL) via Drizzle ORM — a local SQLite file in development |
+| Regions | Functions and both databases in `dub1` / `aws-eu-west-1` |
 | Auth | Email + password, scrypt hashes, opaque session cookies (SHA-256 at rest) |
 | Push | Web Push with VAPID |
 | Hosting | Vercel, with cron jobs for reminders and account purging |
@@ -61,6 +62,8 @@ to an empty database.
 |---|---|---|
 | `TURSO_DATABASE_URL` | production | `libsql://…` connection string |
 | `TURSO_AUTH_TOKEN` | production | Turso database token |
+| `PREVIEW_TURSO_DATABASE_URL` | preview | separate database for branch deployments |
+| `PREVIEW_TURSO_AUTH_TOKEN` | preview | token for that database |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | push | from `npm run vapid:keys` |
 | `VAPID_PRIVATE_KEY` | push | keep secret |
 | `VAPID_SUBJECT` | push | `mailto:` address |
@@ -78,6 +81,7 @@ npm run dev              # development server
 npm run build            # production build
 npm run db:generate      # regenerate migrations from the Drizzle schema
 npm run db:migrate       # apply migrations
+npm run db:migrate:preview # apply them to the preview database
 npm run catalog:build    # rebuild the exercise catalogue from the source dataset
 npm run icons:build      # regenerate icons, splash screens and the OG card
 npm run vapid:keys       # mint a Web Push key pair
@@ -95,6 +99,20 @@ session, checking the statistics and deleting the throwaway account again:
 
 ```bash
 node scripts/prod-check.mjs https://your-deployment.vercel.app
+```
+
+## Environments
+
+Vercel builds a preview deployment for every branch and pull request. Those
+read `PREVIEW_TURSO_DATABASE_URL`, a second Turso database scoped to the
+preview environment only, so a branch can never write into — or migrate — the
+live one. `src/lib/db/index.ts` makes the choice from `VERCEL_ENV`.
+
+To migrate it after a schema change:
+
+```bash
+vercel env pull --environment=preview .env.preview.local
+npm run db:migrate:preview
 ```
 
 ## Scheduled jobs

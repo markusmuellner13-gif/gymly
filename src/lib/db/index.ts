@@ -5,12 +5,31 @@ import * as schema from "./schema";
 let client: Client | undefined;
 let database: ReturnType<typeof drizzle<typeof schema>> | undefined;
 
-function resolveUrl() {
+/**
+ * Picks the database this deployment should talk to.
+ *
+ * Vercel builds a preview deployment for every branch and pull request. Those
+ * get their own Turso database (PREVIEW_TURSO_*, scoped to the preview
+ * environment only) so a half-finished branch can never write into — or
+ * migrate — the live one.
+ */
+function resolveCredentials() {
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  const previewUrl = process.env.PREVIEW_TURSO_DATABASE_URL;
+
+  if (isPreview && previewUrl) {
+    return { url: previewUrl, authToken: process.env.PREVIEW_TURSO_AUTH_TOKEN };
+  }
+
   const url = process.env.TURSO_DATABASE_URL;
-  if (url) return url;
+  if (url) return { url, authToken: process.env.TURSO_AUTH_TOKEN };
+
   // Local development falls back to an on-disk SQLite file so the app runs
   // without any cloud credentials.
-  if (process.env.NODE_ENV !== "production") return "file:./local.db";
+  if (process.env.NODE_ENV !== "production") {
+    return { url: "file:./local.db", authToken: undefined };
+  }
+
   throw new Error(
     "TURSO_DATABASE_URL is not set. Add it in the Vercel project environment variables.",
   );
@@ -22,10 +41,7 @@ function resolveUrl() {
  */
 export function db() {
   if (!database) {
-    client = createClient({
-      url: resolveUrl(),
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
+    client = createClient(resolveCredentials());
     database = drizzle(client, { schema });
   }
   return database;
