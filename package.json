@@ -1,0 +1,40 @@
+{
+  "name": "gymly",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:local": "node --env-file=.env.local scripts/migrate.mjs",
+    "catalog:build": "node scripts/build-catalog.mjs scripts/source-exercises.json",
+    "icons:build": "node scripts/build-icons.mjs",
+    "vapid:keys": "node scripts/gen-vapid.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.44.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "web-push": "^3.6.7",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
+    "drizzle-kit": "^0.31.10",
+    "playwright": "^1.63.0",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}
