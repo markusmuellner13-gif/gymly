@@ -4,7 +4,8 @@ import { CalendarDays, Timer, Dumbbell, HeartPulse } from "lucide-react";
 import { Wordmark } from "@/components/logo";
 
 export const metadata: Metadata = {
-  title: "Gymly — Your training, tracked",
+  // Absolute so the landing page is not suffixed by the site-wide template.
+  title: { absolute: "Gymly — Your training, tracked" },
 };
 
 const FEATURES = [
