@@ -1,5 +1,7 @@
 # Gymly
 
+**Live:** https://gymly-ivory.vercel.app
+
 A gym training tracker: build a push / pull / legs split, log every set with the
 weight you actually moved, and time the session. Installable as a PWA, works on
 any screen size, dark and light.
