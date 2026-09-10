@@ -88,6 +88,13 @@ node scripts/e2e.mjs     # 46 assertions over the real server actions
 node scripts/shots.mjs   # screenshots across phone, tablet, desktop, both themes
 ```
 
+And one that drives a real browser against a deployment, signing up, training a
+session, checking the statistics and deleting the throwaway account again:
+
+```bash
+node scripts/prod-check.mjs https://your-deployment.vercel.app
+```
+
 ## Scheduled jobs
 
 `vercel.json` registers two cron jobs. Both are idempotent and both refuse
