@@ -14,6 +14,7 @@ import {
   Timer,
   Trash2,
   Info,
+  Pencil,
 } from "lucide-react";
 import {
   Button,
@@ -71,6 +72,9 @@ export function DayScreen({
   const [details, setDetails] = useState<DayExerciseRow | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Edit mode swaps every tick box for a bin, so removing is one obvious tap. */
+  const [editing, setEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<DayExerciseRow | null>(null);
 
   // Keep local state aligned when the server sends fresh data (navigation, revalidate).
   const signature = initialRows.map((r) => `${r.id}:${r.completed}:${r.weightKg}`).join("|");
@@ -222,8 +226,11 @@ export function DayScreen({
   };
 
   const remove = async (row: DayExerciseRow) => {
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    const remaining = rows.filter((r) => r.id !== row.id);
+    setRows(remaining);
+    if (!remaining.length) setEditing(false);
     setDetails(null);
+    setConfirmRemove(null);
     try {
       await removeExerciseAction(row.id);
       toast(`${row.name} removed.`, "info");
@@ -267,6 +274,16 @@ export function DayScreen({
           </h1>
           <p className="truncate text-[12px] text-faint">{meta.blurb}</p>
         </div>
+        {rows.length > 0 ? (
+          <IconButton
+            label={editing ? "Done editing" : "Edit exercises"}
+            aria-pressed={editing}
+            onClick={() => setEditing((v) => !v)}
+            className={editing ? "bg-surface-2 text-accent" : undefined}
+          >
+            {editing ? <Check size={20} strokeWidth={3} /> : <Pencil size={18} />}
+          </IconButton>
+        ) : null}
         <IconButton
           label="Add exercise"
           onClick={() => setPicking(true)}
@@ -352,6 +369,10 @@ export function DayScreen({
               </Link>
             ) : null}
           </p>
+        ) : editing ? (
+          <p className="mt-2 text-center text-[12px] text-faint">
+            Tap the bin to take an exercise off this day
+          </p>
         ) : rows.length > 0 ? (
           <p className="mt-2 text-center text-[12px] text-faint">
             {doneCount} of {rows.length} done
@@ -384,9 +405,11 @@ export function DayScreen({
                 index={i + 1}
                 units={units}
                 disabled={locked}
+                editing={editing}
                 onToggle={() => toggle(row)}
                 onAdjust={(d) => adjustWeight(row, d)}
                 onOpen={() => setDetails(row)}
+                onRemove={() => setConfirmRemove(row)}
               />
             ))}
           </ul>
@@ -426,6 +449,15 @@ export function DayScreen({
         body={`${formatDuration(seconds)} trained, ${doneCount} of ${rows.length} exercises done, ${formatVolume(liveVolume, units)} ${units} moved. This gets saved to your history.`}
         confirmLabel="Finish & save"
       />
+
+      <ConfirmSheet
+        open={Boolean(confirmRemove)}
+        onClose={() => setConfirmRemove(null)}
+        onConfirm={() => confirmRemove && remove(confirmRemove)}
+        title={confirmRemove ? `Remove ${confirmRemove.name}?` : "Remove exercise?"}
+        body="It comes off this day only. You can add it back any time, and past sessions keep it."
+        confirmLabel="Remove"
+      />
     </main>
   );
 }
@@ -437,17 +469,21 @@ function ExerciseRow({
   index,
   units,
   disabled,
+  editing,
   onToggle,
   onAdjust,
   onOpen,
+  onRemove,
 }: {
   row: DayExerciseRow;
   index: number;
   units: Units;
   disabled: boolean;
+  editing: boolean;
   onToggle: () => void;
   onAdjust: (deltaDisplay: number) => void;
   onOpen: () => void;
+  onRemove: () => void;
 }) {
   const done = row.completed;
   const isTime = row.trackingMode === "time";
@@ -505,26 +541,37 @@ function ExerciseRow({
           </span>
         </button>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={disabled}
-          aria-pressed={done}
-          aria-label={done ? `Mark ${row.name} as not done` : `Mark ${row.name} as done`}
-          className={cn(
-            "ring-focus grid size-11 shrink-0 place-items-center rounded-xl border-2 transition active:scale-90",
-            "disabled:pointer-events-none disabled:opacity-40",
-            done
-              ? "border-done bg-done text-black"
-              : "border-line-strong text-faint hover:border-[color:var(--accent)] hover:text-accent",
-          )}
-        >
-          <Check
-            size={22}
-            strokeWidth={3}
-            className={done ? "animate-pop" : "opacity-25"}
-          />
-        </button>
+        {editing ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${row.name} from this day`}
+            className="ring-focus grid size-11 shrink-0 place-items-center rounded-xl border-2 border-[color:var(--danger)] bg-danger-dim text-danger transition active:scale-90"
+          >
+            <Trash2 size={20} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggle}
+            disabled={disabled}
+            aria-pressed={done}
+            aria-label={done ? `Mark ${row.name} as not done` : `Mark ${row.name} as done`}
+            className={cn(
+              "ring-focus grid size-11 shrink-0 place-items-center rounded-xl border-2 transition active:scale-90",
+              "disabled:pointer-events-none disabled:opacity-40",
+              done
+                ? "border-done bg-done text-black"
+                : "border-line-strong text-faint hover:border-[color:var(--accent)] hover:text-accent",
+            )}
+          >
+            <Check
+              size={22}
+              strokeWidth={3}
+              className={done ? "animate-pop" : "opacity-25"}
+            />
+          </button>
+        )}
       </div>
 
       {!isTime ? (

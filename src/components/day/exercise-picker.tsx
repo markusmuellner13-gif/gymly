@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { Check, Info, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Chip, Input, Sheet, cn } from "@/components/ui";
+import { ExerciseThumb } from "@/components/exercise-thumb";
+import { ExerciseDetailSheet } from "@/components/exercise-detail";
 import {
   MUSCLE_LABEL,
   dayKindMeta,
@@ -44,6 +46,8 @@ export function ExercisePicker({
   const [equipment, setEquipment] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [selected, setSelected] = useState<Map<string, ExerciseIndexEntry>>(new Map());
+  /** The movement whose photos, muscle map and instructions are being previewed. */
+  const [preview, setPreview] = useState<ExerciseIndexEntry | null>(null);
 
   const meta = dayKindMeta(dayKind);
   const kindGroups = useMemo(() => groupsForKind(dayKind), [dayKind]);
@@ -67,6 +71,7 @@ export function ExercisePicker({
       setEquipment(null);
       setShowAll(false);
       setSelected(new Map());
+      setPreview(null);
     }
   }, [open]);
 
@@ -128,169 +133,215 @@ export function ExercisePicker({
   const filtersOn = Boolean(muscle || equipment || query);
 
   return (
-    <Sheet open={open} onClose={onClose} title={`Add to ${dayName}`} full>
-      <div className="flex h-full flex-col">
-        {/* Search + filters */}
-        <div className="shrink-0 border-b border-line bg-surface px-4 pb-3 pt-3">
-          <div className="relative">
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
-            />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={showAll ? "Search all 876 exercises" : `Search ${meta.label.toLowerCase()} exercises`}
-              className="pl-9 pr-9"
-              autoComplete="off"
-              enterKeyHint="search"
-            />
-            {query ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setQuery("")}
-                className="absolute right-2.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-faint hover:text-text"
-              >
-                <X size={15} />
-              </button>
-            ) : null}
-          </div>
+    <>
+      <Sheet open={open} onClose={onClose} title={`Add to ${dayName}`} full>
+        <div className="flex h-full flex-col">
+          {/* Search + filters */}
+          <div className="shrink-0 border-b border-line bg-surface px-4 pb-3 pt-3">
+            <div className="relative">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={showAll ? "Search all 876 exercises" : `Search ${meta.label.toLowerCase()} exercises`}
+                className="pl-9 pr-9"
+                autoComplete="off"
+                enterKeyHint="search"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setQuery("")}
+                  className="absolute right-2.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-faint hover:text-text"
+                >
+                  <X size={15} />
+                </button>
+              ) : null}
+            </div>
 
-          <div className="no-scrollbar -mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4">
-            <Chip active={!muscle} onClick={() => setMuscle(null)}>
-              All muscles
-            </Chip>
-            {muscles.map((m) => (
-              <Chip key={m} active={muscle === m} onClick={() => setMuscle(muscle === m ? null : m)}>
-                {MUSCLE_LABEL[m] ?? titleCase(m)}
+            <div className="no-scrollbar -mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4">
+              <Chip active={!muscle} onClick={() => setMuscle(null)}>
+                All muscles
               </Chip>
-            ))}
-          </div>
+              {muscles.map((m) => (
+                <Chip key={m} active={muscle === m} onClick={() => setMuscle(muscle === m ? null : m)}>
+                  {MUSCLE_LABEL[m] ?? titleCase(m)}
+                </Chip>
+              ))}
+            </div>
 
-          <div className="no-scrollbar -mx-4 mt-1.5 flex gap-1.5 overflow-x-auto px-4">
-            <Chip active={!equipment} onClick={() => setEquipment(null)}>
-              Any kit
-            </Chip>
-            {equipmentList.map((m) => (
-              <Chip
-                key={m}
-                active={equipment === m}
-                onClick={() => setEquipment(equipment === m ? null : m)}
-              >
-                {titleCase(m)}
+            <div className="no-scrollbar -mx-4 mt-1.5 flex gap-1.5 overflow-x-auto px-4">
+              <Chip active={!equipment} onClick={() => setEquipment(null)}>
+                Any kit
               </Chip>
-            ))}
+              {equipmentList.map((m) => (
+                <Chip
+                  key={m}
+                  active={equipment === m}
+                  onClick={() => setEquipment(equipment === m ? null : m)}
+                >
+                  {titleCase(m)}
+                </Chip>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Scope hint */}
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line px-4 py-2">
-          <p className="min-w-0 truncate text-[12px] text-faint">
-            {showAll ? (
-              <>Showing every exercise · {results.length}</>
+          {/* Scope hint */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line px-4 py-2">
+            <p className="min-w-0 truncate text-[12px] text-faint">
+              {showAll ? (
+                <>Showing every exercise · {results.length}</>
+              ) : (
+                <>
+                  <span style={{ color: meta.color }} className="font-semibold">
+                    {meta.label}
+                  </span>{" "}
+                  movements only · {results.length}
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAll((v) => !v);
+                setMuscle(null);
+                setEquipment(null);
+              }}
+              className="ring-focus flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-muted hover:text-text"
+            >
+              <SlidersHorizontal size={13} />
+              {showAll ? `Just ${meta.label.toLowerCase()}` : "Show all"}
+            </button>
+          </div>
+
+          {/* Results */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {!index ? (
+              <div className="flex justify-center py-16 text-faint">
+                <Loader2 size={22} className="animate-spin" />
+              </div>
+            ) : results.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <p className="text-[15px] font-semibold">No matches</p>
+                <p className="mt-1.5 text-[13px] text-muted">
+                  {filtersOn
+                    ? "Try clearing a filter"
+                    : "Nothing in this category"}
+                  {showAll ? "." : ", or tap “Show all” to search every exercise."}
+                </p>
+              </div>
             ) : (
-              <>
-                <span style={{ color: meta.color }} className="font-semibold">
-                  {meta.label}
-                </span>{" "}
-                movements only · {results.length}
-              </>
-            )}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setShowAll((v) => !v);
-              setMuscle(null);
-              setEquipment(null);
-            }}
-            className="ring-focus flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-muted hover:text-text"
-          >
-            <SlidersHorizontal size={13} />
-            {showAll ? `Just ${meta.label.toLowerCase()}` : "Show all"}
-          </button>
-        </div>
-
-        {/* Results */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {!index ? (
-            <div className="flex justify-center py-16 text-faint">
-              <Loader2 size={22} className="animate-spin" />
-            </div>
-          ) : results.length === 0 ? (
-            <div className="px-6 py-14 text-center">
-              <p className="text-[15px] font-semibold">No matches</p>
-              <p className="mt-1.5 text-[13px] text-muted">
-                {filtersOn
-                  ? "Try clearing a filter"
-                  : "Nothing in this category"}
-                {showAll ? "." : ", or tap “Show all” to search every exercise."}
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-[color:var(--line)]">
-              {results.map((e) => {
-                const picked = selected.has(e.i);
-                const already = existing.has(e.i);
-                return (
-                  <li key={e.i}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(e)}
+              <ul className="divide-y divide-[color:var(--line)]">
+                {results.map((e) => {
+                  const picked = selected.has(e.i);
+                  const already = existing.has(e.i);
+                  return (
+                    <li
+                      key={e.i}
                       className={cn(
-                        "ring-focus flex w-full items-center gap-3 px-4 py-3 text-left transition",
+                        "flex items-center gap-2 pr-2 transition",
                         picked ? "bg-surface-2" : "hover:bg-surface-2",
                       )}
                     >
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5">
-                          <span className="truncate text-[14.5px] font-semibold">{e.n}</span>
-                          {already ? (
-                            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-faint ring-1 ring-[color:var(--line)]">
-                              on day
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="mt-0.5 block truncate text-[12px] text-faint">
-                          {e.p.map((m) => MUSCLE_LABEL[m] ?? titleCase(m)).join(" · ")}
-                          {" — "}
-                          {titleCase(e.e)}
-                          {e.l ? ` · ${titleCase(e.l)}` : ""}
-                        </span>
-                      </span>
-                      <span
-                        className={cn(
-                          "grid size-8 shrink-0 place-items-center rounded-lg border-2 transition",
-                          picked
-                            ? "border-transparent ember-fill text-white"
-                            : "border-line-strong text-transparent",
-                        )}
+                      <button
+                        type="button"
+                        onClick={() => toggle(e)}
+                        aria-pressed={picked}
+                        className="ring-focus flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 text-left"
                       >
-                        <Check size={17} strokeWidth={3} />
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+                        <ExerciseThumb exerciseId={e.i} name={e.n} />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="truncate text-[14.5px] font-semibold">{e.n}</span>
+                            {already ? (
+                              <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-faint ring-1 ring-[color:var(--line)]">
+                                on day
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[12px] font-medium text-accent">
+                            {e.p.map((m) => MUSCLE_LABEL[m] ?? titleCase(m)).join(" · ")}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[12px] text-faint">
+                            {titleCase(e.e)}
+                            {e.l ? ` · ${titleCase(e.l)}` : ""}
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            "grid size-8 shrink-0 place-items-center rounded-lg border-2 transition",
+                            picked
+                              ? "border-transparent ember-fill text-white"
+                              : "border-line-strong text-transparent",
+                          )}
+                        >
+                          <Check size={17} strokeWidth={3} />
+                        </span>
+                      </button>
 
-        {/* Footer */}
-        <div className="shrink-0 border-t border-line bg-surface px-4 py-3">
-          <Button
-            block
-            variant={selected.size === 0 ? "secondary" : "primary"}
-            disabled={selected.size === 0}
-            onClick={submit}
-          >
-            {selected.size === 0
-              ? "Select exercises to add"
-              : `Add ${selected.size} exercise${selected.size === 1 ? "" : "s"}`}
-          </Button>
+                      <button
+                        type="button"
+                        onClick={() => setPreview(e)}
+                        aria-label={`Photos and muscles worked for ${e.n}`}
+                        className="ring-focus grid size-9 shrink-0 place-items-center rounded-lg text-faint transition hover:bg-surface-3 hover:text-text active:scale-90"
+                      >
+                        <Info size={18} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 border-t border-line bg-surface px-4 py-3">
+            <Button
+              block
+              variant={selected.size === 0 ? "secondary" : "primary"}
+              disabled={selected.size === 0}
+              onClick={submit}
+            >
+              {selected.size === 0
+                ? "Select exercises to add"
+                : `Add ${selected.size} exercise${selected.size === 1 ? "" : "s"}`}
+            </Button>
+          </div>
         </div>
-      </div>
-    </Sheet>
+      </Sheet>
+
+      {/* Sibling of the picker, not a child: two fixed overlays must not nest. */}
+      <ExerciseDetailSheet
+        exerciseId={preview?.i ?? null}
+        fallbackName={preview?.n}
+        onClose={() => setPreview(null)}
+        footer={
+          preview ? (
+            <Button
+              block
+              variant={selected.has(preview.i) ? "secondary" : "primary"}
+              onClick={() => {
+                toggle(preview);
+                setPreview(null);
+              }}
+            >
+              {selected.has(preview.i) ? (
+                <>
+                  <X size={16} /> Remove from selection
+                </>
+              ) : (
+                <>
+                  <Check size={16} strokeWidth={3} /> Select for {dayName}
+                </>
+              )}
+            </Button>
+          ) : null
+        }
+      />
+      </>
   );
 }

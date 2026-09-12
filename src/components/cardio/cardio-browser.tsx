@@ -6,6 +6,7 @@ import { Loader2, Plus, Search, X, ChevronRight } from "lucide-react";
 import { Button, Chip, Input, Sheet, cn } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { ExerciseDetailSheet } from "@/components/exercise-detail";
+import { ExerciseThumb } from "@/components/exercise-thumb";
 import {
   MUSCLE_LABEL,
   defaultTrackingMode,
@@ -147,15 +148,17 @@ export function CardioBrowser({
               <button
                 type="button"
                 onClick={() => setDetailId(e.i)}
-                className="ring-focus flex min-w-0 flex-1 items-center gap-1 py-3 pl-3.5 pr-1 text-left"
+                className="ring-focus flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2.5 pr-1 text-left"
               >
+                <ExerciseThumb exerciseId={e.i} name={e.n} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14.5px] font-semibold">{e.n}</span>
-                  <span className="mt-0.5 block truncate text-[12px] text-faint">
+                  <span className="mt-0.5 block truncate text-[12px] font-medium text-accent">
                     {e.p.length
                       ? e.p.map((m) => MUSCLE_LABEL[m] ?? titleCase(m)).join(" · ")
                       : "Full body"}
-                    {" — "}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[12px] text-faint">
                     {titleCase(e.e)}
                   </span>
                 </span>

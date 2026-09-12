@@ -99,6 +99,20 @@ export function defaultTrackingMode(groups: ExerciseGroup[]): TrackingMode {
   return "weight";
 }
 
+/** Where the vendored free-exercise-db photography is mirrored. */
+const IMAGE_CDN = "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/";
+
+/**
+ * Photo URL for a catalog exercise. Every catalog id is URL-safe and its frames
+ * live at `<id>/0.jpg` and `<id>/1.jpg`, so the search index can show a
+ * thumbnail without shipping 876 image URLs to the client. Three kettlebell
+ * movements have no photography and custom exercises never do, so every caller
+ * needs a fallback for a frame that fails to load.
+ */
+export function exerciseImageUrl(exerciseId: string, frame: 0 | 1 = 0) {
+  return `${IMAGE_CDN}${exerciseId}/${frame}.jpg`;
+}
+
 export const EQUIPMENT_ORDER = [
   "barbell",
   "dumbbell",

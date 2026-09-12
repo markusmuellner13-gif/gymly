@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { Sheet, cn } from "@/components/ui";
-import { MUSCLE_LABEL, titleCase, type Exercise } from "@/lib/exercises";
+import { MuscleMap } from "@/components/muscle-map";
+import { titleCase, type Exercise } from "@/lib/exercises";
 import { getExerciseDetailAction } from "@/lib/actions/catalog";
 
 const cache = new Map<string, Exercise | null>();
@@ -86,17 +87,9 @@ export function ExerciseDetailSheet({
 
           <div>
             <h3 className="text-[13px] font-semibold text-muted">Muscles worked</h3>
-            <p className="mt-1 text-[14px] leading-relaxed">
-              <span className="font-medium">
-                {data.primary.map((m) => MUSCLE_LABEL[m] ?? titleCase(m)).join(", ")}
-              </span>
-              {data.secondary.length ? (
-                <span className="text-muted">
-                  {" — also "}
-                  {data.secondary.map((m) => MUSCLE_LABEL[m] ?? titleCase(m)).join(", ")}
-                </span>
-              ) : null}
-            </p>
+            <div className="mt-2">
+              <MuscleMap primary={data.primary} secondary={data.secondary} />
+            </div>
           </div>
 
           {data.instructions.length ? (
