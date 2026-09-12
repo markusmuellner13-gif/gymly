@@ -28,7 +28,8 @@ export function LiveSessionBanner({
       <span className="animate-live size-2.5 shrink-0 rounded-full bg-done" />
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-semibold">{dayName} in progress</span>
-        <span className="tnum block text-[13px] text-muted">
+        {/* The clock ticks on between the server render and hydration. */}
+        <span suppressHydrationWarning className="tnum block text-[13px] text-muted">
           {formatDuration(seconds)} elapsed — tap to continue
         </span>
       </span>

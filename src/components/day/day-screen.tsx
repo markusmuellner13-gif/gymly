@@ -310,6 +310,9 @@ export function DayScreen({
               {running ? <span className="animate-live size-1.5 rounded-full bg-done" /> : null}
             </div>
             <div
+              // A running clock is a second older by the time the browser
+              // hydrates it, and that is not a mismatch worth reporting.
+              suppressHydrationWarning
               className={cn(
                 "tnum mt-1 font-mono text-[26px] font-bold leading-none tracking-tight",
                 running ? "text-text" : "text-faint",
