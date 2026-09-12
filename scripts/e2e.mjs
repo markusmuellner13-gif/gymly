@@ -6,10 +6,12 @@
  * Usage: node scripts/e2e.mjs [baseUrl]
  */
 import { readdirSync, readFileSync } from "node:fs";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@libsql/client";
 
 const BASE = process.argv[2] ?? "http://localhost:3111";
-const db = createClient({ url: "file:./local.db" });
+const LOCAL_DB = "file:./local.db";
+const db = createClient({ url: LOCAL_DB });
 
 let passed = 0;
 let failed = 0;
@@ -104,10 +106,103 @@ async function signUp(email, password) {
   return { cookies, status: res.status };
 }
 
+/* --------------------- which database is under test? --------------------- */
+
+/**
+ * Refuses to run unless the server on BASE is reading ./local.db.
+ *
+ * `next start` loads .env.local, and in this project that file carries the
+ * production Turso credentials — so the obvious way to start the server points
+ * the app at the live database while the assertions below read a local file.
+ * Every one of them would fail, but only after the sign-up had already created
+ * a real account in production.
+ *
+ * The probe is a session cookie minted straight into local.db: the server can
+ * resolve it only if it is reading that same file. Presenting a cookie is a
+ * read, so a wrongly pointed server is caught before anything is written to it.
+ */
+/**
+ * Exits with a message. Closing the client and giving it one turn of the event
+ * loop matters: exiting while it is still closing trips a libuv assertion on
+ * Windows, which replaces the exit code with 127 and buries the message.
+ */
+async function bail(message) {
+  console.error(message);
+  db.close();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  process.exit(1);
+}
+
+async function assertServerUsesLocalDb() {
+  const token = `e2e-guard-${randomBytes(18).toString("base64url")}`;
+  const userId = randomUUID();
+  const sessionId = createHash("sha256").update(token).digest("hex");
+
+  try {
+    await db.execute({
+      sql: "insert into users (id, email, password_hash, name, created_at) values (?, ?, ?, ?, ?)",
+      args: [userId, `${token}@example.invalid`, "scrypt:unusable:00", "E2E guard", Date.now()],
+    });
+    await db.execute({
+      sql: "insert into sessions (id, user_id, created_at, expires_at) values (?, ?, ?, ?)",
+      args: [sessionId, userId, Date.now(), Date.now() + 600_000],
+    });
+  } catch (err) {
+    await bail(`\nCannot write to ./local.db. Run "npm run db:migrate" first.\n  ${err.message}\n`);
+  }
+
+  let status = 0;
+  let unreachable = null;
+  try {
+    const res = await fetch(`${BASE}/plan`, {
+      headers: { cookie: `gymly_session=${token}` },
+      redirect: "manual",
+    });
+    status = res.status;
+    await res.text();
+  } catch (err) {
+    unreachable = err;
+  }
+
+  // No foreign keys to rely on here, so unwind the probe rows by hand. This runs
+  // before any bail, which never returns.
+  await db.execute({ sql: "delete from sessions where id = ?", args: [sessionId] });
+  await db.execute({ sql: "delete from user_settings where user_id = ?", args: [userId] });
+  await db.execute({ sql: "delete from users where id = ?", args: [userId] });
+
+  if (unreachable) {
+    await bail(`\nNo server answering on ${BASE}.\n  ${unreachable.message}\n`);
+  }
+
+  if (status !== 200) {
+    await bail(
+      [
+        "",
+        `Refusing to run: the server on ${BASE} is not reading ./local.db.`,
+        "",
+        "It did not recognise a session that exists in local.db, which means it is",
+        "talking to another database — almost certainly the production Turso one in",
+        ".env.local, because `next start` loads that file. Running on would sign up",
+        "test accounts in live data.",
+        "",
+        "Start the server with the local file forced instead:",
+        "",
+        '  TURSO_DATABASE_URL="file:./local.db" TURSO_AUTH_TOKEN="" npx next start -p 3111',
+        "",
+        "scripts/prod-check.mjs is the one meant to run against a real deployment.",
+        "",
+      ].join("\n"),
+    );
+  }
+}
+
 /* --------------------------------- run ---------------------------------- */
 
 console.log(`\nGymly end-to-end — ${BASE}`);
-console.log(`Discovered ${Object.keys(ACTIONS).length} server actions\n`);
+console.log(`Discovered ${Object.keys(ACTIONS).length} server actions`);
+
+await assertServerUsesLocalDb();
+console.log("Server confirmed on ./local.db\n");
 
 const stamp = Date.now();
 const email = `e2e-${stamp}@example.com`;

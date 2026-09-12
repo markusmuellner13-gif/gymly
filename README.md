@@ -87,12 +87,22 @@ npm run icons:build      # regenerate icons, splash screens and the OG card
 npm run vapid:keys       # mint a Web Push key pair
 ```
 
-Two check scripts run against a started production build on port 3111:
+Two check scripts run against a started production build on port 3111. Both read
+`./local.db` directly, so the server has to be pointed at that same file. Force
+it on the command line — `next start` runs with `NODE_ENV=production` and loads
+`.env.local`, so it would otherwise pick up whatever Turso credentials are in
+there:
 
 ```bash
+TURSO_DATABASE_URL="file:./local.db" TURSO_AUTH_TOKEN="" npx next start -p 3111
+
 node scripts/e2e.mjs     # 46 assertions over the real server actions
 node scripts/shots.mjs   # screenshots across phone, tablet, desktop, both themes
 ```
+
+`e2e.mjs` checks this before it writes anything: it mints a session in
+`local.db` and asks the server to resolve it, and refuses to run if the server
+cannot — so a misconfigured run can never sign test accounts up in live data.
 
 And one that drives a real browser against a deployment, signing up, training a
 session, checking the statistics and deleting the throwaway account again:
